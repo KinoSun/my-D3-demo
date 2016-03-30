@@ -1,0 +1,289 @@
+﻿<html>
+<head>
+    <meta charset="utf-8">
+    <title>Simple D3 Demo</title>
+	 <link rel="stylesheet" type="text/css" href="./css/dc.css"/>
+	 <link rel="stylesheet" type="text/css" href="./css/styles.css"/>
+    <script type="text/javascript" src="./lib/d3.js" charset="utf-8"></script>
+	<script type="text/javascript" src="./lib/crossfilter.js"></script>
+    <script type="text/javascript" src="./lib/dc.js"></script>
+    <style>
+	.axis path,
+    .axis line{
+       fill: none;
+       stroke: black;
+       shape-rendering: crispEdges;
+    }
+ 
+    .axis text {
+       font-family: sans-serif;
+       font-size: 11px;
+    }
+	.MyText {
+		fill: white;
+		text-anchor: middle;
+	}
+	
+	</style>
+
+</head>
+
+<body>
+<div id="my_area-chart"></div>
+
+<div id="area-chart"></div>
+
+<div id="donut-chart"></div>
+
+<div id="bar-chart"></div>
+<script>
+var width = 400;
+var height = 400;
+var rectHeight = 25;
+var rectPadding = 10;  //矩形之间的空白
+
+var svg = d3.select("body")
+            .append("svg")
+			.attr("width", width)
+			.attr("height", height);  //画布
+
+var padding = {left:30, right:30, top:30, bottom:30};			
+
+var dataset = [10, 20, 30, 40, 33, 24, 12, 5];
+
+//x轴序数比例尺
+var xScale = d3.scale.ordinal()
+               .domain(d3.range(dataset.length))
+			   .rangeRoundBands([0, width - padding.left - padding.right]);
+
+//y轴线性比例尺
+var yScale = d3.scale.linear()
+               .domain([0, d3.max(dataset)])  //定义域
+			   .range([height - padding.top - padding.bottom, 0]);    //值域, svg的y轴是从上到下
+
+//x轴序数刻度线
+var xAxis = d3.svg.axis()
+              .scale(xScale)
+			  .orient("bottom");	//刻度方向向下		   
+			   
+//y轴线性刻度线
+var yAxis = d3.svg.axis()
+             .scale(yScale)
+			 .orient("left");       //刻度方向向左
+
+//添加x轴
+svg.append("g")
+   .attr("class", "axis")
+   .attr("transform", "translate(" + padding.left + "," + (height - padding.bottom) + ")")   //定义位置
+   .call(xAxis);
+
+//添加y轴
+svg.append("g")
+   .attr("class", "axis")
+   .attr("transform", "translate(" + padding.left + "," + padding.top + ")")   //定义位置
+   .call(yAxis);   
+   
+//添加矩形元素   
+var rects = svg.selectAll(".MyRect")
+               .data(dataset)
+               .enter()
+               .append("rect")
+			   .attr("class", "MyRect")
+			   .attr("transform", "translate(" + padding.left + ", " + padding.top + ")")
+               .attr("x", function(d, i){
+			      return xScale(i) + rectPadding/2;  //元素在x轴的位置
+			   })
+               .attr("y", function(d){
+                  return yScale(d);                  //元素在y轴的位置
+				  /*这里要注意，y轴的比例尺定义的时候，定义域是0到最大值，
+				    而值域是最大值到0，也就是说dataset的最小值对应的值域最大，也就是
+					yScale最大，y轴的位置从上往下开始算，因此dataset的最小值离
+					y轴0的位置最近
+				  */
+				  
+               })
+               .attr("width", xScale.rangeBand() - rectPadding)  //rangeBand是离散区间的宽度
+               .attr("height", function(d, i){
+			      return height - padding.top - padding.bottom - yScale(d);
+			   })
+		/*	   .attr("fill", "red")
+			   .transition()
+			   .duration(2000)
+			   .delay(function(d, i){
+			      return 200*i;
+			   })  */   //想要看下面的on事件的效果，必须注释掉这块，否则会提示不是function
+			   .attr("fill", "steelblue")
+			   .on("mouseover", function(d, i){
+			      d3.select(this)
+				    .attr("fill", "yellow");
+			   })
+			   .on("mouseout", function(d, i){
+			      d3.select(this)
+				    .transition()
+					.duration(500)
+					.attr("fill", "steelblue");
+			   });
+			   
+var texts = svg.selectAll(".MyText")
+               .data(dataset)
+               .enter()
+			   .append("text")
+			   .attr("class", "MyText")
+			   .attr("transform", "translate(" + padding.left + ", " + padding.top + ")")
+			   .attr("x", function(d, i){
+			      return xScale(i) + rectPadding/2;
+			   })
+			   .attr("y", function(d){
+			      var min = yScale.domain()[0];
+				  return yScale(min);
+			   })
+			   .transition()     //转变状态
+			   .delay(function(d, i){  //依次延迟
+			      return i*200;
+			   })
+			   .duration(2000)   //2s内完成转变
+			   .ease("bounce")   //在目标处跳动几次
+               .attr("y", function(d){
+                  return yScale(d);   
+               })
+			   .attr("dx", (xScale.rangeBand() - rectPadding)/2)
+			   .attr("dy", function(d){
+			      return 20;
+			   })
+			   .text(function(d){
+			      return d;
+			   });
+			   
+
+//利用crossfilter和dc画的图			   
+d3.csv("./data/income_band.dat.csv", function(error, csvdata){
+    if(error){
+	  console.log(error);
+	}
+	console.log(csvdata);
+	var _csvdata = crossfilter(csvdata);
+	console.log(_csvdata);
+	var income_bands = _csvdata.dimension(function(d){return d.ib_income_band_sk});
+	var lower_boundsByIncome = income_bands.group().reduceSum(function(d){return d.ib_lower_bound});
+	var upper_boundsByIncome = income_bands.group().reduceSum(function(d){return d.ib_upper_bound});
+	
+	dc.lineChart("#my_area-chart")
+                .width(500)
+                .height(500)
+                .dimension(income_bands)
+                .group(lower_boundsByIncome)
+			//	.group(upper_boundsByIncome)
+                .x(d3.scale.linear().domain([0, 20]))
+             //   .elasticY(true)
+            //    .xUnits(d3.time.hours)
+             //   .renderArea(true)
+                .xAxis().ticks(10);
+	
+	dc.renderAll();
+	//var str = d3.csv.format(csvdata);
+/*	console.log(str.length);
+	console.log(str);  
+
+	for(var i = 0; i < csvdata.length; i++){
+	  var name = csvdata[i].name;
+	  var sex = csvdata[i].sex;
+	  var age = csvdata[i].age;
+	  console.log("name: " + name + "\n" +
+	              "sex: " + age + "\n" +
+				  "age: " + age
+	  );
+	}
+	*/
+});
+
+
+d3.csv("./data/income_band.dat.csv", function(error, csvdata){
+    if(error){
+	  console.log(error);
+	}
+	console.log(csvdata);
+	var dataset1 = [];
+	var dataset2 = [];
+	csvdata.forEach(function(d){
+	  dataset1.push(+d.ib_income_band_sk);
+	  dataset2.push(+d.ib_lower_bound);
+	});
+	console.log(dataset1);
+	console.log(dataset2);
+	
+});
+
+
+
+/*
+var chart = lineChart()
+        .x(d3.scale.linear().domain([0, d3.max(_csvdata.ib_income_band_sk)]))
+        .y(d3.scale.linear().domain([0, d3.max(_csvdata.ib_lower_bound)]));
+*/
+
+
+var timeFormat = d3.time.format.iso;   // full ISO 8601 UTC time format: "%Y-%m-%dT%H:%M:%S.%LZ"
+d3.json('./data/payment.json', function(json){
+        console.log(json);    //是个对象数组，每个对象对应json里的一条数据
+        var data = crossfilter(json);
+        console.log(data);    //是个对象，有add, remove, dimension, groupAll, size几个成员方法
+        
+		//根据format之后的时间区分维度, 并且应该是有序的
+		var hours = data.dimension(function(d){
+		    console.log(d);   //是个对象，代表json里一列数据
+			console.log(d.date);  //是个字符串 "2011-11-14T08:17:54Z"
+			console.log(timeFormat.parse(d.date));  //Date类型 2011-11-14T01:17:54.000Z
+		    console.log(d3.time.hour(timeFormat.parse(d.date))); //Date 2011-11-14T01:00:00.000Z
+            return d3.time.hour(timeFormat.parse(d.date));
+        }); 
+		
+		//按照时间分组，计算每组total的和
+		var totalByHour = hours.group().reduceSum(function(d){
+		                       // console.log(d);
+		                        console.log(d.total);
+                                return d.total;
+                            });
+              
+        var types = data.dimension(function(d){return d.type;});
+        
+		//按照type分组，计算每组的个数
+		var transactionByType = types.group().reduceCount();
+        
+		//按照quantity分组
+        var quantities = data.dimension(function(d){return d.quantity;});
+        var salesByQuantity = quantities.group();
+
+        dc.lineChart("#area-chart")
+                .width(500)
+                .height(250)
+                .dimension(hours)
+                .group(totalByHour)
+                .x(d3.time.scale().domain([timeFormat.parse("2011-11-14T01:17:54Z"), timeFormat.parse("2011-11-14T18:09:52Z")]))
+                .elasticY(true)
+                .xUnits(d3.time.hours)
+                .renderArea(true)
+                .xAxis().ticks(5);
+
+        dc.pieChart("#donut-chart")
+                .width(250)
+                .height(250)
+                .radius(125)
+                .innerRadius(50)
+                .dimension(types)
+                .group(transactionByType);
+                
+        dc.barChart("#bar-chart")
+                .width(500)
+                .height(250)
+                .dimension(quantities)
+                .group(salesByQuantity)
+                .x(d3.scale.linear().domain([0, 7]))
+                .y(d3.scale.linear().domain([0, 12]))
+                .centerBar(true);
+
+        dc.renderAll();
+});
+</script>
+</body>
+
+</html>

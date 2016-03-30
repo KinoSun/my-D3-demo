@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>从CSV文件中读取数据画一个折线图</title>
+<script type="text/javascript" src="./lib/d3.js"></script>
+<script type="text/javascript" src="./lib/msgicdataLine.js"></script>
+</head>
+<style type="text/css">
+body{
+height: 100%;
+}
+.title{font-family:Arial,微软雅黑;font-size:18px;text-anchor:middle;}
+.subTitle{font-family:Arial,宋体;font-size:12px;text-anchor:middle;fill:#666}
+.axis path,
+.axis line {
+fill: none;
+stroke: black;
+shape-rendering: crispEdges;
+}
+.axis text {
+font-family: sans-serif;
+font-size: 11px;
+fill:#999;
+}
+.inner_line path,
+.inner_line line {
+fill: none;
+stroke:#E7E7E7;
+shape-rendering: crispEdges;
+}
+.legend{font-size: 12px; font-family:Arial, Helvetica, sans-serif}
+.tiptools
+{
+display:block;
+background-color:#FFF;
+border:1px solid #E7E7E7;
+padding:10px;
+font-size:12px;
+font-family:Arial, Helvetica, sans-serif;
+cursor:pointer;
+}
+</style>
+<body>
+<script type="text/javascript">
+//读取CSV文件
+d3.csv("data.csv",function(error,csv)
+{
+var dataset=[];
+var xMark=[];
+csv.forEach(function(d)
+{
+dataset.push(parseFloat(d.value));
+xMark.push(d.title);
+});
+var chart=new magicdataLine(10,10);
+chart.title="从CSV文件中读取的数据";
+chart.subTitle="";
+chart.dataset=[dataset];
+chart.xMarks=xMark;
+chart.lineNames=["系列1"];
+chart.draw();
+});
+</script>
+</body>
+</html>
